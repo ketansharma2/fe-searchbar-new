@@ -2,9 +2,52 @@ export type Role = "ADMIN" | "RECRUITER";
 
 export interface User {
   id: string;
+  name: string;
   email: string;
   role: Role;
 }
+
+export interface Recruiter {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  active: boolean;
+  dailyDownloadLimit: number;
+  usedToday: number;
+  createdAt: string;
+}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface Paginated<T> {
+  success: boolean;
+  data: T[];
+  pagination: PaginationMeta;
+}
+
+export type RecruiterStatusFilter = "all" | "active" | "inactive";
+
+export interface CreateRecruiterPayload {
+  name: string;
+  email: string;
+  password: string;
+  dailyDownloadLimit: number;
+  active: boolean;
+}
+
+export type UpdateRecruiterPayload = Partial<{
+  name: string;
+  email: string;
+  password: string;
+  dailyDownloadLimit: number;
+  active: boolean;
+}>;
 
 export interface LoginPayload {
   email: string;
