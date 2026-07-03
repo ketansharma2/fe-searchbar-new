@@ -20,6 +20,11 @@ export const recruiterApi = {
     return data;
   },
 
+  async getById(id: string): Promise<Recruiter> {
+    const { data } = await api.get<{ recruiter: Recruiter }>(`/recruiters/${id}`);
+    return data.recruiter;
+  },
+
   async create(payload: CreateRecruiterPayload): Promise<Recruiter> {
     const { data } = await api.post<{ recruiter: Recruiter }>("/recruiters", payload);
     return data.recruiter;

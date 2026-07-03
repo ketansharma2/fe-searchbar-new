@@ -1,48 +1,48 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Plus,
-  Search,
+  RefreshCw,
+  Download,
+  MoreHorizontal,
+  Eye,
   Pencil,
-  Trash2,
   UserCheck,
   UserX,
+  Trash2,
   Users,
 } from "lucide-react";
-import { PageHeader } from "@/components/dashboard/widgets";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Pagination } from "@/components/common/Pagination";
+import { PageHeader } from "@/components/common/PageHeader";
+import { DataTable, type Column } from "@/components/common/DataTable";
+import { SearchBar } from "@/components/common/SearchBar";
+import { FilterPanel } from "@/components/common/FilterPanel";
+import { EmptyState } from "@/components/common/EmptyState";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { DeleteDialog } from "@/components/common/DeleteDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { RecruiterFormDialog } from "@/components/recruiters/RecruiterFormDialog";
+import { Pagination } from "@/components/common/Pagination";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/useDebounce";
 import { recruiterApi } from "@/services/recruiter.service";
 import { getErrorMessage } from "@/services/api";
+import { exportToCsv } from "@/lib/csv";
 import type { Paginated, Recruiter, RecruiterStatusFilter } from "@/types";
 
 const LIMIT = 10;
 
-export default function RecruiterManagementPage() {
+export default function RecruitersListPage() {
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
   const [status, setStatus] = useState<RecruiterStatusFilter>("all");
@@ -51,10 +51,8 @@ export default function RecruiterManagementPage() {
   const [result, setResult] = useState<Paginated<Recruiter> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
 
-  // Dialog state
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Recruiter | null>(null);
   const [toDelete, setToDelete] = useState<Recruiter | null>(null);
   const [toToggle, setToToggle] = useState<Recruiter | null>(null);
 
@@ -79,23 +77,13 @@ export default function RecruiterManagementPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Reset to page 1 whenever the filters change.
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, status]);
 
-  function openCreate() {
-    setEditing(null);
-    setFormOpen(true);
-  }
+  const rows = result?.data ?? [];
 
-  function openEdit(recruiter: Recruiter) {
-    setEditing(recruiter);
-    setFormOpen(true);
-  }
-
-  async function handleToggleStatus() {
+  async function handleToggle() {
     if (!toToggle) return;
     try {
       await recruiterApi.setStatus(toToggle.id, !toToggle.active);
@@ -117,141 +105,161 @@ export default function RecruiterManagementPage() {
     }
   }
 
-  const rows = result?.data ?? [];
-  const isEmpty = !loading && !error && rows.length === 0;
+  function doExport() {
+    const source = selected.length > 0 ? rows.filter((r) => selected.includes(r.id)) : rows;
+    exportToCsv(
+      "recruiters.csv",
+      source.map((r) => ({
+        name: r.name,
+        email: r.email,
+        status: r.active ? "Active" : "Inactive",
+        usedToday: r.usedToday,
+        dailyDownloadLimit: r.dailyDownloadLimit,
+        createdAt: new Date(r.createdAt).toISOString(),
+      })),
+      [
+        { key: "name", header: "Name" },
+        { key: "email", header: "Email" },
+        { key: "status", header: "Status" },
+        { key: "usedToday", header: "Used Today" },
+        { key: "dailyDownloadLimit", header: "Daily Limit" },
+        { key: "createdAt", header: "Created" },
+      ]
+    );
+  }
+
+  const columns: Column<Recruiter>[] = [
+    {
+      key: "name",
+      header: "Recruiter",
+      render: (r) => <span className="font-medium">{r.name}</span>,
+    },
+    { key: "email", header: "Email", render: (r) => <span className="text-muted-foreground">{r.email}</span> },
+    { key: "status", header: "Status", render: (r) => <StatusBadge active={r.active} /> },
+    {
+      key: "usage",
+      header: "Usage Today",
+      render: (r) => (
+        <span className="tabular-nums">
+          {r.usedToday} / {r.dailyDownloadLimit}
+        </span>
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "Created",
+      render: (r) => (
+        <span className="text-muted-foreground">
+          {new Date(r.createdAt).toLocaleDateString()}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <PageHeader
-          title="Recruiter Management"
-          description="Create, manage, and set download limits for recruiter accounts."
-        />
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> Add Recruiter
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumb={[{ label: "Dashboard", href: "/admin/dashboard" }, { label: "Recruiters" }]}
+        title="Recruiters"
+        description="Create, manage, and set download limits for recruiter accounts."
+        actions={
+          <Button onClick={() => router.push("/admin/recruiters/new")}>
+            <Plus className="h-4 w-4" /> Add Recruiter
+          </Button>
+        }
+      />
 
-      {/* Filters */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-10"
-            placeholder="Search by name or email…"
+      {/* Toolbar */}
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end">
+          <SearchBar
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            placeholder="Search by name or email…"
+            className="sm:max-w-xs sm:flex-1"
+          />
+          <FilterPanel
+            filters={[
+              {
+                key: "status",
+                label: "Status",
+                value: status,
+                onChange: (v) => setStatus(v as RecruiterStatusFilter),
+                options: [
+                  { value: "all", label: "All statuses" },
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ],
+              },
+            ]}
           />
         </div>
-        <Select value={status} onValueChange={(v) => setStatus(v as RecruiterStatusFilter)}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={doExport} disabled={rows.length === 0}>
+            <Download className="h-4 w-4" />
+            {selected.length > 0 ? `Export (${selected.length})` : "Export"}
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-              <Spinner className="h-5 w-5 text-primary" /> Loading recruiters…
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <p className="text-sm text-destructive">{error}</p>
-              <Button variant="outline" size="sm" onClick={fetchData}>
-                Retry
-              </Button>
-            </div>
-          ) : isEmpty ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                <Users className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="font-medium">No recruiters found</p>
-                <p className="text-sm text-muted-foreground">
-                  {debouncedSearch || status !== "all"
-                    ? "Try adjusting your search or filter."
-                    : "Add your first recruiter to get started."}
-                </p>
-              </div>
-              {!debouncedSearch && status === "all" && (
-                <Button size="sm" onClick={openCreate}>
+      <DataTable
+        columns={columns}
+        data={rows}
+        getRowId={(r) => r.id}
+        loading={loading}
+        error={error}
+        onRetry={fetchData}
+        selectable
+        selectedIds={selected}
+        onSelectionChange={setSelected}
+        onRowClick={(r) => router.push(`/admin/recruiters/${r.id}`)}
+        empty={
+          <EmptyState
+            icon={Users}
+            title="No recruiters found"
+            description={
+              debouncedSearch || status !== "all"
+                ? "Try adjusting your search or filter."
+                : "Add your first recruiter to get started."
+            }
+            action={
+              !debouncedSearch && status === "all" ? (
+                <Button size="sm" onClick={() => router.push("/admin/recruiters/new")}>
                   <Plus className="h-4 w-4" /> Add Recruiter
                 </Button>
-              )}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Recruiter</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Usage Today</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={r.active ? "success" : "muted"}>
-                        {r.active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="tabular-nums">
-                        {r.usedToday} / {r.dailyDownloadLimit}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Edit"
-                          onClick={() => openEdit(r)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title={r.active ? "Deactivate" : "Activate"}
-                          onClick={() => setToToggle(r)}
-                        >
-                          {r.active ? (
-                            <UserX className="h-4 w-4 text-amber-600" />
-                          ) : (
-                            <UserCheck className="h-4 w-4 text-emerald-600" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Delete"
-                          onClick={() => setToDelete(r)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ) : undefined
+            }
+          />
+        }
+        rowActions={(r) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Row actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => router.push(`/admin/recruiters/${r.id}`)}>
+                <Eye /> View
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/admin/recruiters/${r.id}/edit`)}>
+                <Pencil /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setToToggle(r)}>
+                {r.active ? <UserX /> : <UserCheck />}
+                {r.active ? "Deactivate" : "Activate"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem destructive onClick={() => setToDelete(r)}>
+                <Trash2 /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      />
 
       {result && rows.length > 0 && (
         <div className="mt-4">
@@ -259,15 +267,6 @@ export default function RecruiterManagementPage() {
         </div>
       )}
 
-      {/* Create / Edit */}
-      <RecruiterFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        recruiter={editing}
-        onSaved={fetchData}
-      />
-
-      {/* Activate / Deactivate confirm */}
       <ConfirmDialog
         open={Boolean(toToggle)}
         onOpenChange={(o) => !o && setToToggle(null)}
@@ -279,17 +278,15 @@ export default function RecruiterManagementPage() {
         }
         confirmLabel={toToggle?.active ? "Deactivate" : "Activate"}
         destructive={toToggle?.active}
-        onConfirm={handleToggleStatus}
+        onConfirm={handleToggle}
       />
 
-      {/* Delete confirm */}
-      <ConfirmDialog
+      <DeleteDialog
         open={Boolean(toDelete)}
         onOpenChange={(o) => !o && setToDelete(null)}
-        title="Delete recruiter?"
-        description={`This permanently deletes ${toDelete?.name} and all of their logs. This cannot be undone.`}
-        confirmLabel="Delete"
-        destructive
+        resource="recruiter"
+        recordName={toDelete?.name ?? ""}
+        warning="Their logs are removed and their candidates are unassigned."
         onConfirm={handleDelete}
       />
     </div>
