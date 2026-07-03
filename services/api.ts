@@ -47,16 +47,25 @@ let refreshPromise: Promise<string> | null = null;
 
 async function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
+    console.log('[API] Creating new refresh request...');
     refreshPromise = refreshClient
       .post<{ accessToken: string }>("/auth/refresh")
       .then((res) => {
         const newToken = res.data.accessToken;
+        console.log('[API] Refresh successful, got new access token');
         setAccessToken(newToken);
         return newToken;
       })
+      .catch((error) => {
+        console.error('[API] Refresh failed:', error.response?.data || error.message);
+        throw error;
+      })
       .finally(() => {
         refreshPromise = null;
+        console.log('[API] Refresh promise cleared');
       });
+  } else {
+    console.log('[API] Reusing existing refresh promise (concurrent request)');
   }
   return refreshPromise;
 }
@@ -76,12 +85,15 @@ api.interceptors.response.use(
     const isAuthRoute = url.includes("/auth/refresh") || url.includes("/auth/login");
 
     if (status === 401 && original && !original._retry && !isAuthRoute) {
+      console.log('[API] Got 401 error, attempting token refresh for:', url);
       original._retry = true;
       try {
         const newToken = await refreshAccessToken();
         original.headers.Authorization = `Bearer ${newToken}`;
+        console.log('[API] Retrying original request with new token:', url);
         return api(original);
       } catch (refreshError) {
+        console.error('[API] Refresh failed, logging out user');
         setAccessToken(null);
         onRefreshFailed?.();
         return Promise.reject(refreshError);

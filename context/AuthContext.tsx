@@ -45,12 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Returns true when a valid session was restored.
    */
   const refreshToken = useCallback(async (): Promise<boolean> => {
+    console.log('[AuthContext] Attempting to refresh token...');
     try {
       const { data } = await api.post<AuthResponse>("/auth/refresh");
+      console.log('[AuthContext] Refresh successful:', { user: data.user, hasAccessToken: !!data.accessToken });
       syncToken(data.accessToken);
       setUser(data.user);
       return true;
-    } catch {
+    } catch (error) {
+      console.error('[AuthContext] Refresh failed:', error);
       syncToken(null);
       setUser(null);
       return false;
@@ -64,22 +67,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (payload: LoginPayload): Promise<User> => {
+      console.log('[AuthContext] Login attempt:', { email: payload.email, role: payload.role });
       const data = await authApi.login(payload);
+      console.log('[AuthContext] Login successful:', { user: data.user, hasAccessToken: !!data.accessToken });
       syncToken(data.accessToken);
       setUser(data.user);
+      console.log('[AuthContext] User state updated:', data.user);
       return data.user;
     },
     [syncToken]
   );
 
   const logout = useCallback(async () => {
+    console.log('[AuthContext] Logout initiated');
     try {
       await authApi.logout();
-    } catch {
+      console.log('[AuthContext] Logout API call successful');
+    } catch (error) {
+      console.error('[AuthContext] Logout API call failed:', error);
       // ignore network errors on logout
     } finally {
       syncToken(null);
       setUser(null);
+      console.log('[AuthContext] User state cleared, redirecting to login');
       router.replace("/login");
     }
   }, [router, syncToken]);
@@ -94,13 +104,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Bootstrap: try to restore a session from the refresh cookie on first load.
   useEffect(() => {
+    console.log('[AuthContext] Bootstrap: Attempting to restore session...');
     let active = true;
     (async () => {
       const restored = await refreshToken();
+      console.log('[AuthContext] Bootstrap: Session restored?', restored);
       if (active && !restored) {
         syncToken(null);
       }
-      if (active) setLoading(false);
+      if (active) {
+        setLoading(false);
+        console.log('[AuthContext] Bootstrap complete, loading=false');
+      }
     })();
     return () => {
       active = false;
