@@ -14,6 +14,7 @@ const stats: Stat[] = [
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
+  console.log('[AdminDashboard] Page rendered, user:', user);
   return (
     <div>
       <PageHeader

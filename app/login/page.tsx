@@ -45,13 +45,14 @@ function LoginForm() {
 
   // Already authenticated → skip login.
   useEffect(() => {
-    console.log('[LoginPage] Auth state:', { loading, user: user?.email, role: user?.role });
-    if (!loading && user) {
+    console.log('[LoginPage] Auth state:', { loading, user: user?.email, role: user?.role, submitting });
+    // Don't redirect if we're in the middle of submitting the form
+    if (!loading && user && !submitting) {
       const target = dashboardFor(user.role);
       console.log('[LoginPage] User already authenticated, redirecting to:', target);
       router.replace(target);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, submitting]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,7 +68,8 @@ function LoginForm() {
           ? from
           : dashboardFor(loggedIn.role);
       console.log('[LoginPage] Redirecting to:', target, { from, userRole: loggedIn.role });
-      router.replace(target);
+      // Use push instead of replace to ensure navigation happens
+      router.push(target);
     } catch (err) {
       console.error('[LoginPage] Login failed:', err);
       setError(getErrorMessage(err, "Invalid email or password"));

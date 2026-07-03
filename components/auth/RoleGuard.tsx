@@ -28,11 +28,16 @@ export function RoleGuard({
   const router = useRouter();
 
   useEffect(() => {
+    console.log('[RoleGuard] Check:', { loading, user: user?.email, userRole: user?.role, allowedRole: allow });
     if (loading) return;
     if (!user) {
+      console.log('[RoleGuard] No user, redirecting to /login');
       router.replace("/login");
     } else if (user.role !== allow) {
+      console.log('[RoleGuard] Role mismatch, redirecting to /403');
       router.replace("/403");
+    } else {
+      console.log('[RoleGuard] Access granted');
     }
   }, [loading, user, allow, router]);
 
