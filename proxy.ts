@@ -16,10 +16,18 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(REFRESH_COOKIE_NAME)?.value);
 
+  // DEBUG-ONLY: visible in the Amplify SSR/function logs, not the browser.
+  console.log("[cors-debug][proxy]", {
+    pathname,
+    cookieNamesSeen: request.cookies.getAll().map((c) => c.name),
+    hasSession,
+  });
+
   // Unauthenticated user hitting a protected route → send to login.
   if (!hasSession) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
+    console.log("[cors-debug][proxy] redirecting to login — no refresh cookie found", { pathname });
     return NextResponse.redirect(loginUrl);
   }
 
