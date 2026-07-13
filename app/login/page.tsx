@@ -45,12 +45,9 @@ function LoginForm() {
 
   // Already authenticated → skip login.
   useEffect(() => {
-    console.log('[LoginPage] Auth state:', { loading, user: user?.email, role: user?.role, submitting });
     // Don't redirect if we're in the middle of submitting the form
     if (!loading && user && !submitting) {
-      const target = dashboardFor(user.role);
-      console.log('[LoginPage] User already authenticated, redirecting to:', target);
-      router.replace(target);
+      router.replace(dashboardFor(user.role));
     }
   }, [user, loading, router, submitting]);
 
@@ -58,20 +55,16 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    console.log('[LoginPage] Form submitted:', { email, role });
     try {
       const loggedIn = await login({ email, password, role });
-      console.log('[LoginPage] Login returned user:', loggedIn);
       const from = params.get("from");
       const target =
         from && from.startsWith(loggedIn.role === "ADMIN" ? "/admin" : "/recruiter")
           ? from
           : dashboardFor(loggedIn.role);
-      console.log('[LoginPage] Redirecting to:', target, { from, userRole: loggedIn.role });
       // Use push instead of replace to ensure navigation happens
       router.push(target);
     } catch (err) {
-      console.error('[LoginPage] Login failed:', err);
       setError(getErrorMessage(err, "Invalid email or password"));
     } finally {
       setSubmitting(false);

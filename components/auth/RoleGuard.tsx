@@ -13,9 +13,6 @@ import type { Role } from "@/types";
  * - Not authenticated → redirect to /login
  * - Authenticated but wrong role → redirect to /403
  * - Authorized → render children
- *
- * This is the definitive role check (proxy.ts only does an optimistic
- * cookie-presence check and cannot read the role).
  */
 export function RoleGuard({
   allow,
@@ -28,16 +25,11 @@ export function RoleGuard({
   const router = useRouter();
 
   useEffect(() => {
-    console.log('[RoleGuard] Check:', { loading, user: user?.email, userRole: user?.role, allowedRole: allow });
     if (loading) return;
     if (!user) {
-      console.log('[RoleGuard] No user, redirecting to /login');
       router.replace("/login");
     } else if (user.role !== allow) {
-      console.log('[RoleGuard] Role mismatch, redirecting to /403');
       router.replace("/403");
-    } else {
-      console.log('[RoleGuard] Access granted');
     }
   }, [loading, user, allow, router]);
 

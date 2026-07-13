@@ -164,7 +164,6 @@ export interface LoginPayload {
 export interface AuthResponse {
   success: boolean;
   user: User;
-  accessToken: string;
 }
 
 export interface MeResponse {
