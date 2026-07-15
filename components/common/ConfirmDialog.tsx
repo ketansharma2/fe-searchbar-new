@@ -19,15 +19,21 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Confirm",
   destructive = false,
+  confirmDisabled = false,
   onConfirm,
+  children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description: string;
+  description?: string;
   confirmLabel?: string;
   destructive?: boolean;
+  /** Disables the confirm button (e.g. while a typed-confirmation input doesn't match yet). */
+  confirmDisabled?: boolean;
   onConfirm: () => Promise<void> | void;
+  /** Extra content rendered below the description (e.g. a typed-confirmation input). */
+  children?: React.ReactNode;
 }) {
   const [loading, setLoading] = useState(false);
 
@@ -46,8 +52,9 @@ export function ConfirmDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
+        {children}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
@@ -55,7 +62,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? "destructive" : "default"}
             onClick={handleConfirm}
-            disabled={loading}
+            disabled={loading || confirmDisabled}
           >
             {loading && <Spinner className="h-4 w-4" />}
             {confirmLabel}

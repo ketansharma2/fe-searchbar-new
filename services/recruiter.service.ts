@@ -1,9 +1,11 @@
 import { api } from "./api";
 import type {
   CreateRecruiterPayload,
+  DateRangeParams,
   Paginated,
   Recruiter,
   RecruiterStatusFilter,
+  RangeSummary,
   UpdateRecruiterPayload,
 } from "@/types";
 
@@ -44,5 +46,13 @@ export const recruiterApi = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/recruiters/${id}`);
+  },
+
+  /** "Recruiters added in range" dashboard KPI — both bounds required. */
+  async summary(range: Required<DateRangeParams>): Promise<RangeSummary> {
+    const { data } = await api.get<{ range: RangeSummary }>("/recruiters/summary", {
+      params: range,
+    });
+    return data.range;
   },
 };

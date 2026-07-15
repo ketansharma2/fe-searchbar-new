@@ -1,53 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, UserCheck, UserX, Gauge } from "lucide-react";
-import { PageHeader } from "@/components/common/PageHeader";
+import { Pencil, Gauge } from "lucide-react";
+import { DetailHeader } from "@/components/common/DetailHeader";
+import { DangerZone } from "@/components/common/DangerZone";
 import { DetailCard, DetailSection } from "@/components/common/DetailCard";
 import { DetailSkeleton } from "@/components/common/LoadingSkeleton";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DeleteDialog } from "@/components/common/DeleteDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
-import { recruiterApi } from "@/services/recruiter.service";
+import { useRecruiter, useSetRecruiterStatus, useDeleteRecruiter } from "@/hooks/useRecruiters";
 import { getErrorMessage } from "@/services/api";
-import type { Recruiter } from "@/types";
+import { formatDateTime } from "@/lib/format";
 
 export default function RecruiterDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [recruiter, setRecruiter] = useState<Recruiter | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: recruiter, isLoading, isError, error } = useRecruiter(id);
+  const setStatus = useSetRecruiterStatus();
+  const remove = useDeleteRecruiter();
+
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmToggle, setConfirmToggle] = useState(false);
-
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      setRecruiter(await recruiterApi.getById(id));
-    } catch (err) {
-      setError(getErrorMessage(err, "Recruiter not found"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
 
   async function handleToggle() {
     if (!recruiter) return;
     try {
-      const updated = await recruiterApi.setStatus(recruiter.id, !recruiter.active);
-      setRecruiter(updated);
+      const updated = await setStatus.mutateAsync({ id: recruiter.id, active: !recruiter.active });
       toast.success(updated.active ? "Recruiter activated" : "Recruiter deactivated");
     } catch (err) {
       toast.error(getErrorMessage(err, "Could not update status"));
@@ -57,7 +41,7 @@ export default function RecruiterDetailPage() {
   async function handleDelete() {
     if (!recruiter) return;
     try {
-      await recruiterApi.remove(recruiter.id);
+      await remove.mutateAsync(recruiter.id);
       toast.success("Recruiter deleted");
       router.push("/admin/recruiters");
     } catch (err) {
@@ -65,26 +49,29 @@ export default function RecruiterDetailPage() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div>
-        <PageHeader
+        <DetailHeader
           breadcrumb={[
             { label: "Dashboard", href: "/admin/dashboard" },
             { label: "Recruiters", href: "/admin/recruiters" },
             { label: "…" },
           ]}
           title="Recruiter"
+          backHref="/admin/recruiters"
         />
         <DetailSkeleton />
       </div>
     );
   }
 
-  if (error || !recruiter) {
+  if (isError || !recruiter) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <p className="text-sm text-destructive">{error ?? "Recruiter not found"}</p>
+        <p className="text-sm text-destructive">
+          {isError ? getErrorMessage(error, "Recruiter not found") : "Recruiter not found"}
+        </p>
         <Button asChild variant="outline" size="sm">
           <Link href="/admin/recruiters">Back to recruiters</Link>
         </Button>
@@ -96,7 +83,7 @@ export default function RecruiterDetailPage() {
 
   return (
     <div>
-      <PageHeader
+      <DetailHeader
         breadcrumb={[
           { label: "Dashboard", href: "/admin/dashboard" },
           { label: "Recruiters", href: "/admin/recruiters" },
@@ -104,33 +91,16 @@ export default function RecruiterDetailPage() {
         ]}
         title={r.name}
         description={r.email}
-        actions={
-          <>
-            <Button variant="outline" onClick={() => router.push("/admin/recruiters")}>
-              <ArrowLeft className="h-4 w-4" /> Back
-            </Button>
-            <Button variant="outline" onClick={() => setConfirmToggle(true)}>
-              {r.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-              {r.active ? "Deactivate" : "Activate"}
-            </Button>
-            <Button onClick={() => router.push(`/admin/recruiters/${r.id}/edit`)}>
-              <Pencil className="h-4 w-4" /> Edit
-            </Button>
-            <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="h-4 w-4" /> Delete
-            </Button>
-          </>
-        }
+        backHref="/admin/recruiters"
+        status={<StatusBadge active={r.active} />}
+        primaryAction={{
+          label: "Edit",
+          icon: Pencil,
+          onClick: () => router.push(`/admin/recruiters/${r.id}/edit`),
+        }}
       />
 
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <StatusBadge active={r.active} />
-          <span className="text-sm text-muted-foreground">
-            Joined {new Date(r.createdAt).toLocaleDateString()}
-          </span>
-        </div>
-
         <DetailCard title="Account Information">
           <DetailSection
             fields={[
@@ -138,7 +108,7 @@ export default function RecruiterDetailPage() {
               { label: "Email", value: r.email },
               { label: "Role", value: r.role },
               { label: "Status", value: <StatusBadge active={r.active} /> },
-              { label: "Created", value: new Date(r.createdAt).toLocaleString() },
+              { label: "Created", value: formatDateTime(r.createdAt) },
             ]}
           />
         </DetailCard>
@@ -152,6 +122,27 @@ export default function RecruiterDetailPage() {
             ]}
           />
         </DetailCard>
+
+        <DangerZone
+          actions={[
+            {
+              label: r.active ? "Deactivate recruiter" : "Activate recruiter",
+              description: r.active
+                ? "Signs them out and blocks login immediately. Can be reversed at any time."
+                : "Restores their ability to log in.",
+              buttonLabel: r.active ? "Deactivate" : "Activate",
+              destructive: r.active,
+              onClick: () => setConfirmToggle(true),
+            },
+            {
+              label: "Delete recruiter",
+              description:
+                "Permanently deletes this account. Their logs are removed and their candidates are unassigned.",
+              buttonLabel: "Delete",
+              onClick: () => setConfirmDelete(true),
+            },
+          ]}
+        />
       </div>
 
       <ConfirmDialog
@@ -174,6 +165,7 @@ export default function RecruiterDetailPage() {
         resource="recruiter"
         recordName={r.name}
         warning="Their logs are removed and their candidates are unassigned."
+        requireTypedConfirmation
         onConfirm={handleDelete}
       />
     </div>

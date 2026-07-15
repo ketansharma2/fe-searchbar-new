@@ -1,38 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/common/PageHeader";
 import { RecruiterForm } from "@/components/recruiters/RecruiterForm";
 import { DetailSkeleton } from "@/components/common/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
-import { recruiterApi } from "@/services/recruiter.service";
+import { useRecruiter } from "@/hooks/useRecruiters";
 import { getErrorMessage } from "@/services/api";
-import type { Recruiter } from "@/types";
 
 export default function EditRecruiterPage() {
   const { id } = useParams<{ id: string }>();
-  const [recruiter, setRecruiter] = useState<Recruiter | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const data = await recruiterApi.getById(id);
-        if (active) setRecruiter(data);
-      } catch (err) {
-        if (active) setError(getErrorMessage(err, "Recruiter not found"));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [id]);
+  const { data: recruiter, isLoading, isError, error } = useRecruiter(id);
 
   return (
     <div>
@@ -45,11 +24,13 @@ export default function EditRecruiterPage() {
         ]}
         title={recruiter ? `Edit ${recruiter.name}` : "Edit Recruiter"}
       />
-      {loading ? (
+      {isLoading ? (
         <DetailSkeleton />
-      ) : error || !recruiter ? (
+      ) : isError || !recruiter ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <p className="text-sm text-destructive">{error ?? "Recruiter not found"}</p>
+          <p className="text-sm text-destructive">
+            {isError ? getErrorMessage(error, "Recruiter not found") : "Recruiter not found"}
+          </p>
           <Button asChild variant="outline" size="sm">
             <Link href="/admin/recruiters">Back to recruiters</Link>
           </Button>

@@ -4,17 +4,22 @@ import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-export function PageHeader({
+export function SectionHeader({
   title,
   description,
+  actions,
 }: {
   title: string;
   description?: string;
+  actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6">
-      <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
-      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

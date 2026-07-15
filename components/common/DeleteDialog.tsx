@@ -2,19 +2,14 @@
 
 import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 /**
  * Standard destructive-action confirmation. Shows the record name and a
- * warning; never deletes immediately.
+ * warning; never deletes immediately. Set `requireTypedConfirmation` for
+ * high-impact deletes (recruiter, etc.) to require typing the record name.
  */
 export function DeleteDialog({
   open,
@@ -22,6 +17,7 @@ export function DeleteDialog({
   recordName,
   resource = "record",
   warning,
+  requireTypedConfirmation = false,
   onConfirm,
 }: {
   open: boolean;
@@ -29,44 +25,49 @@ export function DeleteDialog({
   recordName: string;
   resource?: string;
   warning?: string;
+  requireTypedConfirmation?: boolean;
   onConfirm: () => Promise<void> | void;
 }) {
-  const [loading, setLoading] = useState(false);
-
-  async function handleConfirm() {
-    setLoading(true);
-    try {
-      await onConfirm();
-      onOpenChange(false);
-    } finally {
-      setLoading(false);
-    }
+  const [typed, setTyped] = useState("");
+  // Reset the typed-confirmation input as the dialog transitions closed, without an effect
+  // (React's "adjusting state during render" pattern — see react.dev/learn/you-might-not-need-an-effect).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setTyped("");
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !loading && onOpenChange(o)}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-          </div>
-          <DialogTitle>Delete {resource}?</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          You are about to permanently delete{" "}
-          <span className="font-semibold text-foreground">{recordName}</span>.{" "}
-          {warning ?? "This action cannot be undone."}
-        </p>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={loading}>
-            {loading && <Spinner className="h-4 w-4" />}
-            Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Delete ${resource}?`}
+      confirmLabel="Delete"
+      destructive
+      confirmDisabled={requireTypedConfirmation && typed !== recordName}
+      onConfirm={onConfirm}
+    >
+      <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10">
+        <AlertTriangle className="h-5 w-5 text-destructive" />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        You are about to permanently delete{" "}
+        <span className="font-semibold text-foreground">{recordName}</span>.{" "}
+        {warning ?? "This action cannot be undone."}
+      </p>
+      {requireTypedConfirmation && (
+        <div className="space-y-2">
+          <Label htmlFor="delete-confirm-input">
+            Type <span className="font-semibold text-foreground">{recordName}</span> to confirm
+          </Label>
+          <Input
+            id="delete-confirm-input"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+      )}
+    </ConfirmDialog>
   );
 }

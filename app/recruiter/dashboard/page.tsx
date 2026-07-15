@@ -1,39 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { UserRoundSearch, FileText, CalendarCheck, Star, Download } from "lucide-react";
+import { Download, Search, Repeat2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { PageHeader, StatGrid, type Stat } from "@/components/dashboard/widgets";
+import { SectionHeader } from "@/components/dashboard/widgets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usageApi } from "@/services/usage.service";
-import type { MyUsage } from "@/types";
+import { EmptyState } from "@/components/common/EmptyState";
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
+import { useMyUsage } from "@/hooks/useUsage";
+import { useActivityLogs } from "@/hooks/useActivityLogs";
+import { useListQueryState } from "@/hooks/useListQueryState";
+import { activityMessage, buildSearchReplayHref } from "@/lib/activityMessages";
+import { formatDeltaPct, formatRelativeTime } from "@/lib/format";
+import { toApiDateRange } from "@/lib/dateRange";
+import type { DateRangeParams } from "@/types";
 
-const stats: Stat[] = [
-  { label: "My Candidates", value: "86", icon: UserRoundSearch, delta: "+9 this week" },
-  { label: "Open Applications", value: "31", icon: FileText, delta: "+4" },
-  { label: "Interviews Today", value: "5", icon: CalendarCheck },
-  { label: "Shortlisted", value: "18", icon: Star, delta: "+2" },
-];
-
-/** Real daily download quota, from GET /api/usage/me. */
-function QuotaCard() {
-  const [usage, setUsage] = useState<MyUsage | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    usageApi
-      .me()
-      .then((u) => active && setUsage(u))
-      .catch(() => {})
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, []);
+/** Real daily download quota, from GET /api/usage/me — always "today", regardless of the selected range. */
+function QuotaCard({ range }: { range?: DateRangeParams }) {
+  const { data: usage, isLoading } = useMyUsage(range);
 
   const used = usage?.usedToday ?? 0;
   const limit = usage?.dailyDownloadLimit ?? 0;
@@ -46,34 +32,49 @@ function QuotaCard() {
           <Download className="h-4 w-4 text-primary" /> Resume Downloads Today
         </CardTitle>
         <Button asChild size="sm" variant="outline">
-          <Link href="/recruiter/candidates">Search candidates</Link>
+          <Link href="/recruiter/candidates">
+            <Search className="h-4 w-4" /> Search candidates
+          </Link>
         </Button>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {isLoading ? (
           <Skeleton className="h-10 w-full" />
         ) : (
-          <div className="space-y-2">
-            <div className="flex items-end justify-between">
-              <p className="text-3xl font-bold tabular-nums">
-                {used}
-                <span className="text-lg font-medium text-muted-foreground">
-                  {" "}
-                  / {usage?.unlimited ? "∞" : limit}
-                </span>
-              </p>
-              {!usage?.unlimited && (
-                <p className="text-sm text-muted-foreground">
-                  {usage?.remaining ?? 0} remaining
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-end justify-between">
+                <p className="text-3xl font-bold tabular-nums">
+                  {used}
+                  <span className="text-lg font-medium text-muted-foreground">
+                    {" "}
+                    / {usage?.unlimited ? "∞" : limit}
+                  </span>
                 </p>
+                {!usage?.unlimited && (
+                  <p className="text-sm text-muted-foreground">
+                    {usage?.remaining ?? 0} remaining
+                  </p>
+                )}
+              </div>
+              {!usage?.unlimited && (
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={pct >= 100 ? "h-full bg-destructive" : "h-full bg-primary"}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               )}
             </div>
-            {!usage?.unlimited && (
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={pct >= 100 ? "h-full bg-destructive" : "h-full bg-primary"}
-                  style={{ width: `${pct}%` }}
-                />
+            {usage?.range && (
+              <div className="flex items-center justify-between border-t pt-3">
+                <p className="text-sm text-muted-foreground">Downloads in selected range</p>
+                <div className="text-right">
+                  <p className="text-lg font-semibold tabular-nums">{usage.range.count}</p>
+                  {formatDeltaPct(usage.range.deltaPct) && (
+                    <p className="text-xs text-muted-foreground">{formatDeltaPct(usage.range.deltaPct)}</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -83,70 +84,68 @@ function QuotaCard() {
   );
 }
 
+/** Last 5 searches, replayable — reuses the Activity Logs API (self-scoped for recruiters). */
+function RecentSearchesCard({ range }: { range?: DateRangeParams }) {
+  const { data, isLoading } = useActivityLogs({
+    type: "search_candidates",
+    limit: 5,
+    from: range?.from,
+    to: range?.to,
+  });
+  const rows = data?.data ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Recent Searches</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-10 animate-pulse rounded-lg bg-muted/40" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon={Search} title="No recent searches found" />
+        ) : (
+          <div className="space-y-3">
+            {rows.map((log) => (
+              <div key={log.id} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm">{activityMessage(log)}</p>
+                  <p className="text-xs text-muted-foreground">{formatRelativeTime(log.createdAt)}</p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={buildSearchReplayHref(log.details)}>
+                    <Repeat2 className="h-4 w-4" /> Replay
+                  </Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function RecruiterDashboardPage() {
   const { user } = useAuth();
+  const [dateRange, setDateRange] = useListQueryState({ from: "", to: "" });
+  const apiRange = toApiDateRange(dateRange.from, dateRange.to);
+
   return (
     <div>
-      <PageHeader
+      <SectionHeader
         title={`Hi, ${user?.email?.split("@")[0] ?? "Recruiter"}`}
-        description="Your candidates and applications at a glance."
+        description="Your search quota and recent activity at a glance."
+        actions={<DateRangeFilter value={dateRange} onChange={setDateRange} />}
       />
-      <div className="mb-6">
-        <QuotaCard />
-      </div>
-      <StatGrid stats={stats} />
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Upcoming Interviews</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { name: "Aarav Sharma", role: "Frontend Engineer", time: "10:30 AM" },
-              { name: "Priya Nair", role: "Product Designer", time: "12:00 PM" },
-              { name: "Rohan Gupta", role: "Backend Engineer", time: "3:15 PM" },
-            ].map((c) => (
-              <div key={c.name} className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                  {c.name.charAt(0)}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.role}</p>
-                </div>
-                <span className="text-sm text-muted-foreground">{c.time}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Application Stages</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: "Applied", value: 42, color: "bg-blue-500" },
-              { label: "Screening", value: 28, color: "bg-indigo-500" },
-              { label: "Interview", value: 16, color: "bg-violet-500" },
-              { label: "Offer", value: 6, color: "bg-emerald-500" },
-            ].map((s) => (
-              <div key={s.label}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span>{s.label}</span>
-                  <span className="text-muted-foreground">{s.value}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={`h-full ${s.color}`}
-                    style={{ width: `${(s.value / 42) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        <QuotaCard range={apiRange} />
+        <RecentSearchesCard range={apiRange} />
       </div>
     </div>
   );

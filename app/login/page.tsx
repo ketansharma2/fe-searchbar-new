@@ -233,10 +233,6 @@ function LoginForm() {
             </Button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">
-            Demo — Admin: admin@mavenjobs.in · Recruiter: recruiter@mavenjobs.in ·
-            Password: Maven@2026
-          </p>
         </motion.div>
       </div>
     </div>

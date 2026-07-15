@@ -110,16 +110,34 @@ export interface ResumeUsage {
   remaining?: number;
 }
 
+/** A count within a [from, to] window, vs. the equal-length prior window — powers every KPI trend delta. */
+export interface RangeSummary {
+  from: string;
+  to: string;
+  count: number;
+  previousCount: number;
+  deltaPct: number | null;
+}
+
+export interface DateRangeParams {
+  from?: string;
+  to?: string;
+}
+
 export interface MyUsage {
   unlimited: boolean;
   usedToday: number;
   dailyDownloadLimit?: number;
   remaining?: number;
+  /** Present only when a [from, to] range was requested. */
+  range?: RangeSummary;
 }
 
 export interface GlobalUsage {
   totalDownloadsToday: number;
   activeRecruiters: number;
+  /** Present only when a [from, to] range was requested. */
+  range?: RangeSummary;
 }
 
 export interface BulkRowError {
@@ -175,4 +193,63 @@ export interface ApiErrorResponse {
   success: false;
   message: string;
   errors?: Record<string, string[]>;
+}
+
+export type ActivityType =
+  | "login"
+  | "logout"
+  | "search_candidates"
+  | "view_candidate"
+  | "resume_view"
+  | "resume_download"
+  | "update_remark"
+  | "add_candidate"
+  | "bulk_upload"
+  | "create_recruiter"
+  | "update_recruiter"
+  | "delete_recruiter"
+  | "activate_recruiter"
+  | "deactivate_recruiter";
+
+export interface ActivityLog {
+  id: string;
+  type: ActivityType;
+  details: Record<string, unknown>;
+  ip?: string;
+  createdAt: string;
+  actor: { id: string; name: string; email: string; role: Role };
+}
+
+export type ActorTypeFilter = "all" | "admin" | "recruiter";
+
+export interface ActivityLogListParams {
+  userId?: string;
+  actorType?: ActorTypeFilter;
+  type?: ActivityType;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AnalyticsSummary {
+  totalCandidates: number;
+  addedToday: number;
+  addedYesterday: number;
+  addedThisWeek: number;
+  /** Present only when a [from, to] range was requested. */
+  range?: RangeSummary;
+}
+
+export type AnalyticsDimension =
+  | "location"
+  | "skills"
+  | "designation"
+  | "company"
+  | "portal"
+  | "experience";
+
+export interface AnalyticsBreakdownRow {
+  label: string;
+  count: number;
 }

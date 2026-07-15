@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-import { PageHeader } from "@/components/dashboard/widgets";
+import { SectionHeader } from "@/components/dashboard/widgets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ export default function ProfilePage() {
   const { user } = useAuth();
   return (
     <div>
-      <PageHeader title="Profile" description="Your account details." />
+      <SectionHeader title="Profile" description="Your account details." />
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle className="text-base">Account Information</CardTitle>

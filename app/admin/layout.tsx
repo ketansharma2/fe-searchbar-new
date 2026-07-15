@@ -13,7 +13,7 @@ import { DashboardShell, type NavItem } from "@/components/dashboard/DashboardSh
 const adminNav: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Recruiter Management", href: "/admin/recruiters", icon: Users },
-  { label: "Candidate Management", href: "/admin/candidates", icon: UserRoundSearch },
+  { label: "Candidates", href: "/admin/candidates", icon: UserRoundSearch },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "Activity Logs", href: "/admin/activity", icon: ScrollText },
 ];
