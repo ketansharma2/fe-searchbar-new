@@ -20,6 +20,9 @@ import { useListQueryState } from "@/hooks/useListQueryState";
 import { useCandidateSearch } from "@/hooks/useCandidates";
 import { getErrorMessage } from "@/services/api";
 import { exportToCsv } from "@/lib/csv";
+import { ResumePreviewModal } from "@/components/ui/ResumePreviewModal";
+import { Eye } from "lucide-react";
+import { candidateApi } from "@/services/candidate.service";
 import type { CandidateCard, CandidateSearchParams } from "@/types";
 
 const LIMIT = 20;
@@ -63,6 +66,41 @@ export function CandidateSearchPanel({
   const [skills, setSkills] = useState<string[]>(urlState.skills);
   const [keywords, setKeywords] = useState<string[]>(urlState.keywords);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Add after other useState declarations (around line 54)
+const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+const [previewCandidateName, setPreviewCandidateName] = useState("");
+const [isFullscreen, setIsFullscreen] = useState(false);
+const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+const openPreviewModal = async (candidate: CandidateCard) => {
+  if (candidate.hasResume && candidate.id) {
+    setIsPreviewLoading(true);
+    const { url } = await candidateApi.previewResume(candidate.id);
+
+      if (!url) {
+        throw new Error("No resume URL received");
+      }
+   
+    setPreviewUrl(url);
+    setPreviewCandidateName(candidate.name);
+    setIsPreviewModalOpen(true);
+    setTimeout(() => setIsPreviewLoading(false), 500);
+  } else {
+    toast.error("No resume available for this candidate");
+  }
+};
+
+const closePreviewModal = () => {
+  setIsPreviewModalOpen(false);
+  setPreviewUrl(null);
+  setPreviewCandidateName("");
+};
+
+const toggleFullscreen = () => {
+  setIsFullscreen(!isFullscreen);
+};
 
   const hasCriteria =
     Boolean(urlState.q) ||
@@ -159,8 +197,11 @@ export function CandidateSearchPanel({
       header: "Resume",
       render: (c) =>
         c.hasResume ? (
-          <Badge variant="muted" className="gap-1">
-            <FileText className="h-3 w-3" /> Yes
+          <Badge variant="muted" className="gap-1"  onClick={(e) => {
+          e.stopPropagation();
+          openPreviewModal(c);
+        }}>
+            <FileText className="h-3 w-3" /> View
           </Badge>
         ) : (
           <span className="text-muted-foreground">—</span>
@@ -285,6 +326,15 @@ export function CandidateSearchPanel({
           )}
         </>
       )}
+      <ResumePreviewModal
+  open={isPreviewModalOpen}
+  onOpenChange={closePreviewModal}
+  previewUrl={previewUrl}
+  candidateName={previewCandidateName}
+  isFullscreen={isFullscreen}
+  onToggleFullscreen={toggleFullscreen}
+  isLoading={isPreviewLoading}
+/>
     </div>
   );
 }
