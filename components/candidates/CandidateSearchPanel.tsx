@@ -21,7 +21,6 @@ import { useCandidateSearch } from "@/hooks/useCandidates";
 import { getErrorMessage } from "@/services/api";
 import { exportToCsv } from "@/lib/csv";
 import { ResumePreviewModal } from "@/components/ui/ResumePreviewModal";
-import { Eye } from "lucide-react";
 import { candidateApi } from "@/services/candidate.service";
 import type { CandidateCard, CandidateSearchParams } from "@/types";
 
@@ -165,7 +164,7 @@ const toggleFullscreen = () => {
         name: c.name,
         designation: c.designation ?? "",
         location: c.location ?? "",
-        experience: c.relevantExp ?? "",
+        experience: c.experience ?? "",
         company: c.recentCompany ?? "",
       })),
       [
@@ -189,7 +188,7 @@ const toggleFullscreen = () => {
     {
       key: "relevantExp",
       header: "Experience",
-      render: (c) => (c.relevantExp !== undefined ? `${c.relevantExp} yrs` : "—"),
+      render: (c) => (c.experience !== undefined ? `${c.experience} yrs` : "—"),
     },
     { key: "recentCompany", header: "Company", render: (c) => c.recentCompany ?? "—" },
     {

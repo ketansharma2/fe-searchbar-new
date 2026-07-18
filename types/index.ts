@@ -12,6 +12,7 @@ export interface Recruiter {
   name: string;
   email: string;
   role: Role;
+  real_password:string;
   active: boolean;
   dailyDownloadLimit: number;
   usedToday: number;

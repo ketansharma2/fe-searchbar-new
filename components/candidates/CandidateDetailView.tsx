@@ -3,13 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from "@/components/ui/dialog";
+
 import {
   FileText,
   Download,
@@ -17,10 +11,7 @@ import {
   MessageSquare,
   User,
   Briefcase,
-  X,
-  Maximize2,
-  Minimize2,
-  Eye,
+
 } from "lucide-react";
 import axios from "axios";
 import type { Crumb } from "@/components/common/Breadcrumb";
