@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState ,useEffect} from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Search, SlidersHorizontal, Download, RefreshCw, FileText, Users } from "lucide-react";
@@ -14,6 +14,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { TagInput } from "@/components/common/TagInput";
 import { useListQueryState } from "@/hooks/useListQueryState";
@@ -21,7 +28,6 @@ import { useCandidateSearch } from "@/hooks/useCandidates";
 import { getErrorMessage } from "@/services/api";
 import { exportToCsv } from "@/lib/csv";
 import { ResumePreviewModal } from "@/components/ui/ResumePreviewModal";
-import { Eye } from "lucide-react";
 import { candidateApi } from "@/services/candidate.service";
 import type { CandidateCard, CandidateSearchParams } from "@/types";
 
@@ -49,8 +55,7 @@ export function CandidateSearchPanel({
     q: "",
     location: "",
     designation: "",
-    minExp: "",
-    maxExp: "",
+    experience: "all",
     skills: [] as string[],
     keywords: [] as string[],
     page: 1,
@@ -61,18 +66,20 @@ export function CandidateSearchPanel({
   const [q, setQ] = useState(urlState.q);
   const [location, setLocation] = useState(urlState.location);
   const [designation, setDesignation] = useState(urlState.designation);
-  const [minExp, setMinExp] = useState(urlState.minExp);
-  const [maxExp, setMaxExp] = useState(urlState.maxExp);
-  const [skills, setSkills] = useState<string[]>(urlState.skills);
+  const [skills, setSkills] = useState<string[]>([]);
   const [keywords, setKeywords] = useState<string[]>(urlState.keywords);
   const [showFilters, setShowFilters] = useState(false);
-
+const [experience, setExperience] = useState("all");
+const [search, setSearch] = useState("");
   // Add after other useState declarations (around line 54)
 const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 const [previewCandidateName, setPreviewCandidateName] = useState("");
 const [isFullscreen, setIsFullscreen] = useState(false);
 const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
+
 
 const openPreviewModal = async (candidate: CandidateCard) => {
   if (candidate.hasResume && candidate.id) {
@@ -92,6 +99,35 @@ const openPreviewModal = async (candidate: CandidateCard) => {
   }
 };
 
+// Fetch suggestions from MongoDB seeder data
+
+useEffect(() => {
+  const fetchSuggestions = async () => {
+    try {
+      const [locations, skills] = await Promise.all([
+        candidateApi.getUniqueLocations(),
+        candidateApi.getUniqueSkills(),
+      ]);
+      setLocationSuggestions(locations || []);
+      setSkillSuggestions(skills || []);
+    } catch (error) {
+      console.error("Failed to fetch suggestions:", error);
+      // Fallback suggestions
+      setLocationSuggestions([
+        "New York, NY", "Los Angeles, CA", "Chicago, IL", 
+        "Houston, TX", "San Francisco, CA", "Boston, MA",
+        "Seattle, WA", "Austin, TX", "Denver, CO", "Miami, FL"
+      ]);
+      setSkillSuggestions([
+        "React", "Angular", "Node.js", "Python", "Java",
+        "TypeScript", "AWS", "Docker", "MongoDB", "PostgreSQL"
+      ]);
+    }
+  };
+
+  fetchSuggestions();
+}, []);
+
 const closePreviewModal = () => {
   setIsPreviewModalOpen(false);
   setPreviewUrl(null);
@@ -106,20 +142,23 @@ const toggleFullscreen = () => {
     Boolean(urlState.q) ||
     Boolean(urlState.location) ||
     Boolean(urlState.designation) ||
-    urlState.minExp !== "" ||
-    urlState.maxExp !== "" ||
+    urlState.experience !== "all" ||
     urlState.skills.length > 0 ||
     urlState.keywords.length > 0;
 
   function runSearch() {
+     const selectedSkills = search.trim()
+    ? [search.trim()]
+    : [];
     const hasAny =
       q.trim() ||
       location.trim() ||
       designation.trim() ||
-      minExp !== "" ||
-      maxExp !== "" ||
+      experience !== "all" ||
       skills.length ||
       keywords.length;
+
+      console.log(skills);
     if (!hasAny) {
       toast.error("Enter at least one search criterion");
       return;
@@ -128,9 +167,8 @@ const toggleFullscreen = () => {
       q: q.trim(),
       location: location.trim(),
       designation: designation.trim(),
-      minExp,
-      maxExp,
-      skills,
+      experience,
+      skills: skills, // Use the skills array
       keywords,
       page: 1,
     });
@@ -140,13 +178,23 @@ const toggleFullscreen = () => {
     q: urlState.q || undefined,
     location: urlState.location || undefined,
     designation: urlState.designation || undefined,
-    minExp: urlState.minExp !== "" ? Number(urlState.minExp) : undefined,
-    maxExp: urlState.maxExp !== "" ? Number(urlState.maxExp) : undefined,
+    experience:
+     urlState.experience !== "all"
+    ? urlState.experience
+    : undefined,
     skills: urlState.skills.length ? urlState.skills : undefined,
     keywords: urlState.keywords.length ? urlState.keywords : undefined,
     page: urlState.page,
     limit: LIMIT,
   };
+  const resetFilters = () => {
+  setQ("");
+  setLocation("");
+  setExperience("all");
+  setSkills([]); 
+  setSearch("");
+  setKeywords([]);
+};
 
   const {
     data: result,
@@ -165,7 +213,7 @@ const toggleFullscreen = () => {
         name: c.name,
         designation: c.designation ?? "",
         location: c.location ?? "",
-        experience: c.relevantExp ?? "",
+        experience: c.experience ?? "",
         company: c.recentCompany ?? "",
       })),
       [
@@ -178,6 +226,7 @@ const toggleFullscreen = () => {
     );
   }
 
+
   const columns: Column<CandidateCard>[] = [
     { key: "name", header: "Candidate", render: (c) => <span className="font-medium">{c.name}</span> },
     {
@@ -189,7 +238,7 @@ const toggleFullscreen = () => {
     {
       key: "relevantExp",
       header: "Experience",
-      render: (c) => (c.relevantExp !== undefined ? `${c.relevantExp} yrs` : "—"),
+      render: (c) => (c.experience !== undefined ? `${c.experience} yrs` : "—"),
     },
     { key: "recentCompany", header: "Company", render: (c) => c.recentCompany ?? "—" },
     {
@@ -234,68 +283,87 @@ const toggleFullscreen = () => {
       />
 
       {/* Search + filters */}
-      <Card className="mb-4">
-        <CardContent className="space-y-3 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <SearchBar
-              value={q}
-              onChange={setQ}
-              placeholder="Name, company, skill, designation…"
-              className="flex-1"
-            />
-            <div className="sm:w-56">
-              <Input
-                placeholder="Location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && runSearch()}
-              />
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters((s) => !s)}
-              className={showFilters ? "border-primary text-primary" : ""}
-            >
-              <SlidersHorizontal className="h-4 w-4" /> Filters
-            </Button>
-            <Button onClick={runSearch}>
-              <Search className="h-4 w-4" /> Search
-            </Button>
-          </div>
+          <Card className="mb-4">
+  <CardContent className="p-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+      {/* Search */}
+      <SearchBar
+        value={q}
+        onChange={setQ}
+        placeholder="Search candidate..."
+        className="lg:col-span-2"
+      />
 
-          {showFilters && (
-            <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Designation</Label>
-                <Input
-                  value={designation}
-                  onChange={(e) => setDesignation(e.target.value)}
-                  placeholder="e.g. Frontend Engineer"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Min experience</Label>
-                  <Input type="number" min={0} value={minExp} onChange={(e) => setMinExp(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Max experience</Label>
-                  <Input type="number" min={0} value={maxExp} onChange={(e) => setMaxExp(e.target.value)} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Skills (all must match)</Label>
-                <TagInput value={skills} onChange={setSkills} placeholder="Add a skill…" />
-              </div>
-              <div className="space-y-2">
-                <Label>Resume keywords</Label>
-                <TagInput value={keywords} onChange={setKeywords} placeholder="Add a keyword…" />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Location */}
+      {/* Location with suggestions */}
+<Input
+  list="location-list"
+  placeholder="Location"
+  value={location}
+  onChange={(e) => setLocation(e.target.value)}
+/>
 
+<datalist id="location-list">
+  {locationSuggestions.map((item) => (
+    <option key={item} value={item} />
+  ))}
+</datalist>
+
+      {/* Experience */}
+      <Select value={experience} onValueChange={setExperience}>
+        <SelectTrigger>
+          <SelectValue placeholder="Experience" />
+        </SelectTrigger>
+
+        <SelectContent>
+          <SelectItem value="all">All Experience</SelectItem>
+          <SelectItem value="0">Fresher (0 Years)</SelectItem>
+          <SelectItem value="0-1">0 - 1 Years</SelectItem>
+          <SelectItem value="1-2">1 - 2 Years</SelectItem>
+          <SelectItem value="2-3">2 - 3 Years</SelectItem>
+          <SelectItem value="3-5">3 - 5 Years</SelectItem>
+          <SelectItem value="5+">5+ Years</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Skills */}
+    <Input
+  list="skills-list"
+  placeholder="Type skill..."
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+  onBlur={() => {
+    // When user selects from datalist or types, add the skill
+    const trimmed = search.trim();
+    if (trimmed && !skills.includes(trimmed)) {
+      setSkills([...skills, trimmed]);
+      setSearch("");
+    }
+  }}
+/>
+      
+      <datalist id="skills-list">
+        {skillSuggestions.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+
+      {/* Buttons - now part of the grid */}
+      <Button
+        variant="outline"
+        onClick={resetFilters}
+        className="w-full"
+      >
+        Reset
+      </Button>
+
+      <Button onClick={runSearch} className="w-full">
+        <Search className="mr-2 h-4 w-4" />
+        Search
+      </Button>
+    </div>
+  </CardContent>
+</Card>
       {/* Results */}
       {!hasCriteria ? (
         <div className="rounded-xl border bg-card">

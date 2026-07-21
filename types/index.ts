@@ -12,6 +12,7 @@ export interface Recruiter {
   name: string;
   email: string;
   role: Role;
+  real_password:string;
   active: boolean;
   dailyDownloadLimit: number;
   usedToday: number;
@@ -63,8 +64,7 @@ export interface CandidateSearchParams {
   q?: string;
   location?: string;
   designation?: string;
-  minExp?: number;
-  maxExp?: number;
+  experience?: string;
   skills?: string[];
   keywords?: string[];
   page?: number;

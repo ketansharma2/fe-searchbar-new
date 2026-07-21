@@ -23,6 +23,7 @@ export const candidateApi = {
     return data;
   },
 
+  
   /** Hybrid search + filters (recruiter + admin). */
   async search(params: CandidateSearchParams): Promise<Paginated<CandidateCard>> {
     const { data } = await api.get<Paginated<CandidateCard>>("/candidates", { params });
@@ -44,6 +45,18 @@ export const candidateApi = {
     });
     return data.candidate;
   },
+
+  /** Get unique locations for suggestions */
+async getUniqueLocations(): Promise<string[]> {
+  const { data } = await api.get<{ locations: string[] }>("/candidates/locations");
+  return data.locations;
+},
+
+/** Get unique skills for suggestions */
+async getUniqueSkills(): Promise<string[]> {
+  const { data } = await api.get<{ skills: string[] }>("/candidates/skills");
+  return data.skills;
+},
 
   /** Bulk upload — multipart .xlsx/.csv under `file`. */
   async bulkUpload(file: File): Promise<BulkUploadSummary> {
