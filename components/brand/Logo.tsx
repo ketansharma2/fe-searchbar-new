@@ -1,6 +1,7 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Maven Jobs wordmark + glyph. */
+/** Maven Jobs icon + logo image. */
 export function Logo({
   className,
   variant = "light",
@@ -8,9 +9,9 @@ export function Logo({
   className?: string;
   variant?: "light" | "dark";
 }) {
-  const text = variant === "light" ? "text-white" : "text-foreground";
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
+      {/* Existing Home Icon - Don't Remove */}
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm ring-1 ring-white/25">
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
           <path
@@ -31,9 +32,16 @@ export function Logo({
           />
         </svg>
       </div>
-      <span className={cn("text-lg font-bold tracking-tight", text)}>
-        Maven<span className="font-light opacity-80">Jobs</span>
-      </span>
+
+      {/* Logo Image - Replaces MavenJobs Text */}
+      <Image
+        src="/images/logo.png"
+        alt="Maven Jobs"
+        width={150}
+        height={40}
+        priority
+        className="h-9 w-auto object-contain"
+      />
     </div>
   );
 }
