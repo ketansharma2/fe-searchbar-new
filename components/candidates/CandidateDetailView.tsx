@@ -126,7 +126,6 @@ export function CandidateDetailView({
           breadcrumb={[...breadcrumb, { label: "…" }]}
           title="Candidate"
           backHref={backHref}
-          onBack={() => router.back()}
         />
         <DetailSkeleton />
       </div>
