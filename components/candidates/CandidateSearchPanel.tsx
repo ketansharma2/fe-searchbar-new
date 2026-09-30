@@ -395,7 +395,28 @@ const toggleFullscreen = () => {
             loading={isLoading}
             error={isError ? getErrorMessage(error, "Search failed") : null}
             onRetry={() => refetch()}
-            onRowClick={(c) => router.push(`${basePath}/${c.id}`)}
+            onRowClick={(c) => {
+  const params = new URLSearchParams();
+
+  if (urlState.q) params.set("q", urlState.q);
+  if (urlState.location) params.set("location", urlState.location);
+  if (urlState.designation) params.set("designation", urlState.designation);
+  if (urlState.experience !== "all") {
+    params.set("experience", urlState.experience);
+  }
+
+  if (urlState.skills.length) {
+    params.set("skills", urlState.skills.join(","));
+  }
+
+  if (urlState.keywords.length) {
+    params.set("keywords", urlState.keywords.join(","));
+  }
+
+  params.set("page", String(urlState.page));
+
+  router.push(`${basePath}/${c.id}?${params.toString()}`);
+}}
             empty={
               <EmptyState icon={Users} title="No candidates found" description="Try broadening your criteria." />
             }
