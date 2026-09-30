@@ -66,10 +66,10 @@ export function CandidateSearchPanel({
   const [q, setQ] = useState(urlState.q);
   const [location, setLocation] = useState(urlState.location);
   const [designation, setDesignation] = useState(urlState.designation);
-  const [skills, setSkills] = useState<string[]>([]);
+const [skills, setSkills] = useState<string[]>(urlState.skills);
   const [keywords, setKeywords] = useState<string[]>(urlState.keywords);
   const [showFilters, setShowFilters] = useState(false);
-const [experience, setExperience] = useState("all");
+const [experience, setExperience] = useState(urlState.experience);
 const [search, setSearch] = useState("");
   // Add after other useState declarations (around line 54)
 const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
