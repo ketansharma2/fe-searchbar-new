@@ -39,7 +39,7 @@ export function DetailHeader({
             variant="ghost"
             size="icon"
             aria-label="Back"
-            onClick={() => router.push(backHref)}
+            onClick={() => router.back()}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>

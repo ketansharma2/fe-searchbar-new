@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-
+import { useRouter } from "next/navigation";
 import {
   FileText,
   Download,
@@ -44,7 +44,7 @@ export function CandidateDetailView({
 }) {
   const { data: candidate, isLoading, isError, error } = useCandidate(id);
   const addRemark = useAddCandidateRemark(id);
-
+  const router = useRouter();
   const [remark, setRemark] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -126,6 +126,7 @@ export function CandidateDetailView({
           breadcrumb={[...breadcrumb, { label: "…" }]}
           title="Candidate"
           backHref={backHref}
+          onBack={() => router.back()}
         />
         <DetailSkeleton />
       </div>
