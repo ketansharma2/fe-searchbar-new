@@ -188,12 +188,25 @@ const toggleFullscreen = () => {
     limit: LIMIT,
   };
   const resetFilters = () => {
+  // Clear draft fields
   setQ("");
   setLocation("");
+  setDesignation("");
   setExperience("all");
-  setSkills([]); 
-  setSearch("");
+  setSkills([]);
   setKeywords([]);
+  setSearch("");
+
+  // Clear URL/query state
+  setUrlState({
+    q: "",
+    location: "",
+    designation: "",
+    experience: "all",
+    skills: [],
+    keywords: [],
+    page: 1,
+  });
 };
 
   const {
